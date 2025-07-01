@@ -11,7 +11,7 @@ import RightTopPanel from "@/components/panels/RightTopPanel";
 // Team member data
 const teamMembers = [
   {
-    name: "Satyam Kumar Jha",
+    name: "Satyam Kumar",
     position: "Backend Developer",
     imageUrl:
       "https://cdlsaecoineiohkdextf.supabase.co/storage/v1/object/public/uploads//satyam.jpg",
