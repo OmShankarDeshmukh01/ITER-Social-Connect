@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
 import { Check, X } from "lucide-react";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 
 export default function RightSidebar() {
   const [requests, setRequests] = useState([]);
@@ -16,6 +17,7 @@ export default function RightSidebar() {
   const [error, setError] = useState(null);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const { accessToken } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -63,6 +65,10 @@ export default function RightSidebar() {
   }, [accessToken]);
 
   const handleShowMore = () => setShowAllEvents((prev) => !prev);
+
+  const handleLearnMore = () => {
+    router.push('/events');
+  };
 
   // Accept a connection request and remove it from the list
   const handleAcceptRequest = async (request) => {
@@ -122,7 +128,7 @@ export default function RightSidebar() {
             requests.slice(0, 2).map((req) => (
               <div key={req.requestId} className="flex items-center gap-3">
                 <Image
-                  src={req.profilePicture || "/placeholder.svg"}
+                  src={req.profilePicture || "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"}
                   alt={req.name || "User profile image"}
                   width={40}
                   height={40}
@@ -216,6 +222,7 @@ export default function RightSidebar() {
                     rel="noopener noreferrer"
                     variant="outline"
                     size="sm"
+                    onClick={handleLearnMore}
                     className="w-full text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300"
                   >
                     Learn More

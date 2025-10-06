@@ -21,9 +21,25 @@ import { useProfileNavigation } from "@/contexts/ProfileNavigation";
 import { BACKEND_URL } from "@/configs/index";
 import axios from "axios";
 import PostsPreloader from "@/components/preloaders/PostsPreloader";
+import { useMediaQuery } from "react-responsive";
+
+// Add CSS animation for gradient shift
+const gradientAnimation = `
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+`;
+
+// Inject the CSS
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = gradientAnimation;
+  document.head.appendChild(style);
+}
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useMediaQuery } from "react-responsive";
 import {
   Image,
   MessageCircleMore,
@@ -46,6 +62,7 @@ import {
   ChevronDown,
   ExternalLink,
   Check,
+  Trophy,
 } from "lucide-react";
 import {
   Card,
@@ -53,6 +70,7 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
+// FCM is handled globally by FirebaseMessagingProvider
 
 /**
  * Time Handler Function
@@ -115,6 +133,7 @@ const formatLinks = (text) => {
 
 const categories = [
   { value: "general", label: "General", icon: <Tag className="h-4 w-4" /> },
+  { value: "sih", label: "SIH", icon: <Trophy className="h-4 w-4" />},
   { value: "aiml", label: "AI/ML", icon: <Brain className="h-4 w-4" /> },
   { value: "webdev", label: "Web Dev", icon: <Globe className="h-4 w-4" /> },
   {
@@ -164,6 +183,10 @@ export default function MainFeed() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("general");
   const [categoriesPosting, setCategoriesPosting] = useState(categories[0]);
+  
+  // Track if we're using server-side filtering (for role-based categories)
+  const [isServerFiltered, setIsServerFiltered] = useState(false);
+  const [previousCategory, setPreviousCategory] = useState("general");
 
   // Ref for the sentinel element used for infinite scrolling
   const sentinelRef = useRef(null);
@@ -185,6 +208,7 @@ export default function MainFeed() {
       handlePostSubmit();
     }
   };
+  // FCM registration moved to global provider
 
   // /* Fetch The User Feed */
   // const fetchPosts = useCallback(async () => {
@@ -229,8 +253,15 @@ export default function MainFeed() {
     setLoading(true);
 
     try {
+      // Determine if we need server-side filtering for role-based categories
+      const needsServerFiltering = selectedCategory === 'teacher' || selectedCategory === 'alumni';
+      
       const response = await axios.get(`${BACKEND_URL}/api/feed`, {
-        params: { page, limit: 10 },
+        params: { 
+          page, 
+          limit: 10,
+          ...(needsServerFiltering && { role: selectedCategory })
+        },
         withCredentials: true,
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
       });
@@ -242,8 +273,19 @@ export default function MainFeed() {
         ...post,
         category: post.category || "general",
       }));
-
-      setPosts((prev) => [...prev, ...processedPosts]);
+      
+      if (needsServerFiltering) {
+        // For server-side filtered posts, replace on first page, append on subsequent pages
+        if (page === 1) {
+          setPosts(processedPosts);
+        } else {
+          setPosts((prev) => [...prev, ...processedPosts]);
+        }
+      } else {
+        // For client-side filtered posts, append to existing posts
+        setPosts((prev) => [...prev, ...processedPosts]);
+      }
+      
       setHasMore(response.data.hasMore);
     } catch (err) {
       setError(err);
@@ -251,17 +293,17 @@ export default function MainFeed() {
       isFetchingRef.current = false;
       setLoading(false);
     }
-  }, [page, accessToken]);
+  }, [page, accessToken, selectedCategory]);
 
-  // Filter posts based on selected category
+  // Filter posts based on selected category (only for client-side filtering)
   const filteredPosts = posts.filter((post) => {
-    if (selectedCategory === "alumni") {
-      return post.role === "alumni";
-    } else if (selectedCategory === "teacher") {
-      return post.role === "teacher";
+    // For role-based categories, posts are already filtered server-side
+    if (selectedCategory === "alumni" || selectedCategory === "teacher") {
+      return true; // All posts are already filtered by role on server
     } else if (
       [
         "general",
+        "sih",
         "aiml",
         "webdev",
         "mobile",
@@ -280,8 +322,19 @@ export default function MainFeed() {
 
   // Updated category change handler
   const handleCategoryChange = (category) => {
+    const needsServerFiltering = category === 'teacher' || category === 'alumni';
+    const wasServerFiltered = previousCategory === 'teacher' || previousCategory === 'alumni';
+    
     setSelectedCategory(category);
-    // No need to reset posts/page since we're filtering client-side
+    setPreviousCategory(category);
+    
+    // Reset pagination and posts when switching between different filtering modes
+    if (needsServerFiltering !== wasServerFiltered) {
+      setPage(1);
+      setPosts([]);
+      setHasMore(true);
+      setIsServerFiltered(needsServerFiltering);
+    }
   };
   // Add near your other hooks
   const navRef = useRef(null);
@@ -323,6 +376,13 @@ export default function MainFeed() {
     }
   }, [profile]);
 
+  /* Reset posts and pagination when category changes */
+  useEffect(() => {
+    setPage(1);
+    setPosts([]);
+    setHasMore(true);
+  }, [selectedCategory]);
+
   /* Fetch posts when page changes */
   useEffect(() => {
     fetchPosts();
@@ -353,7 +413,7 @@ export default function MainFeed() {
         observer.unobserve(currentSentinel);
       }
     };
-  }, [loading, hasMore]);
+  }, [loading, hasMore, selectedCategory]);
 
   /* Post Creation */
   const handlePostSubmit = async () => {
@@ -592,9 +652,61 @@ export default function MainFeed() {
             ref={navRef}
             style={{ scrollbarWidth: "thin" }}
           >
+            {/* SIH Button - Featured First */}
+            <button
+              onClick={() => handleCategoryChange("sih")}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0 relative overflow-hidden group
+      ${
+        selectedCategory === "sih"
+          ? "bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white shadow-xl animate-pulse"
+          : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 dark:hover:from-purple-900/20 dark:hover:to-pink-900/20 shadow-md hover:shadow-xl hover:scale-105"
+      }`}
+              style={{
+                background: selectedCategory === "sih" 
+                  ? "linear-gradient(45deg, #8b5cf6, #ec4899, #3b82f6, #8b5cf6)"
+                  : undefined,
+                backgroundSize: selectedCategory === "sih" ? "300% 300%" : undefined,
+                animation: selectedCategory === "sih" ? "gradientShift 3s ease infinite" : undefined
+              }}
+            >
+              {/* Rolling gradient border - always visible */}
+              <div className={`absolute inset-0 rounded-full p-[3px] transition-all duration-300 ${
+                selectedCategory === "sih" 
+                  ? "bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 animate-spin"
+                  : "bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 opacity-60 group-hover:opacity-100 group-hover:animate-pulse"
+              }`} style={{
+                background: selectedCategory === "sih" 
+                  ? "conic-gradient(from 0deg, #8b5cf6, #ec4899, #3b82f6, #8b5cf6)"
+                  : "linear-gradient(45deg, #8b5cf6, #ec4899, #3b82f6)"
+              }}>
+                <div className={`w-full h-full rounded-full transition-all duration-300 ${
+                  selectedCategory === "sih" 
+                    ? "bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600" 
+                    : "bg-white dark:bg-gray-800 group-hover:bg-gradient-to-r group-hover:from-purple-50 group-hover:to-pink-50 dark:group-hover:from-purple-900/20 dark:group-hover:to-pink-900/20"
+                }`}></div>
+              </div>
+              
+              {/* Content */}
+              <span className="relative z-10 flex items-center gap-2">
+                <span className={`absolute -top-1 -right-1 w-3 h-3 rounded-full animate-ping ${
+                  selectedCategory === "sih" 
+                    ? "bg-pink-400" 
+                    : "bg-purple-500 dark:bg-purple-400"
+                }`}></span>
+                <span className="font-semibold">SIH</span>
+                <span className={`transition-all duration-300 ${
+                  selectedCategory === "sih" 
+                    ? "animate-bounce text-yellow-300" 
+                    : " text-purple-500 dark:text-purple-400 group-hover:text-pink-500"
+                }`}>
+                  <Trophy className="h-4 w-4" />
+                </span>
+              </span>
+            </button>
+
             {/* General Button */}
             <button
-              onClick={() => setSelectedCategory("general")}
+              onClick={() => handleCategoryChange("general")}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0
       ${
         selectedCategory === "general"
@@ -607,7 +719,7 @@ export default function MainFeed() {
 
             {/* Teacher Posts Button */}
             <button
-              onClick={() => setSelectedCategory("teacher")}
+              onClick={() => handleCategoryChange("teacher")}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0
       ${
         selectedCategory === "teacher"
@@ -615,12 +727,12 @@ export default function MainFeed() {
           : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
       }`}
             >
-              Teacher 
+              Teacher
             </button>
 
             {/* Alumni Posts Button */}
             <button
-              onClick={() => setSelectedCategory("alumni")}
+              onClick={() => handleCategoryChange("alumni")}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0
       ${
         selectedCategory === "alumni"
@@ -628,16 +740,16 @@ export default function MainFeed() {
           : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
       }`}
             >
-              Alumni 
+              Alumni
             </button>
 
-            {/* Remaining Categories (excluding "general") */}
+            {/* Remaining Categories (excluding "general" and "sih") */}
             {categories
-              .filter((category) => category.value !== "general")
+              .filter((category) => category.value !== "general" && category.value !== "sih")
               .map((category) => (
                 <button
                   key={category.value}
-                  onClick={() => setSelectedCategory(category.value)}
+                  onClick={() => handleCategoryChange(category.value)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0
           ${
             selectedCategory === category.value
@@ -646,6 +758,7 @@ export default function MainFeed() {
           }`}
                 >
                   {category.label}
+                  
                 </button>
               ))}
           </div>
@@ -687,13 +800,7 @@ export default function MainFeed() {
                 placeholder="What's on your mind?"
                 value={newPostContent}
                 onChange={(e) => setNewPostContent(e.target.value)}
-                // onKeyDown={(e) => {
-                //   if (e.key === "Enter" && !e.shiftKey) {
-                //     e.preventDefault();
-                //     handlePostSubmit();
-                //   }
-                // }}
-                onKeyDown={(e) => handleKeyDown(e)}
+                onKeyDown={handleKeyDown}
                 className="resize-y bg-gray-100 min-h-[100px] dark:bg-gray-700 border-0 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 rounded-lg text-gray-900 dark:text-gray-100 whitespace-pre-wrap overflow-y-auto"
               />
               <div className="mt-4 flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
@@ -894,7 +1001,8 @@ export default function MainFeed() {
                   onClick={() => router.push(`/post/${post.id}`)}
                 >
                   <MessageCircleMore className="h-4 w-4" />
-                  <div className="hidden md:block">Comments</div>
+                  {/* <div className="hidden md:block">Comments</div> */}
+                  <div>{post.commentCount}</div>
                 </Button>
                 <Button
                   variant="ghost"

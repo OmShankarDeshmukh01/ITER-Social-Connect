@@ -153,7 +153,7 @@ export default function Navbar() {
   const menuItems = [
     { icon: Home, label: "Home", route: "/explore" },
     { icon: Bell, label: "Notifications", route: "/notifications" },
-    { icon: Mail, label: "Messages", route: "/chat", disabled: true },
+    { icon: Mail, label: "Messages", route: "/chat" },
     { icon: Settings, label: "Settings", route: "/settings" },
     { icon: BadgeInfo, label: "About Us", route: "/team"},
     { icon: Users, label: "Connections", route: "/connections" },
@@ -164,6 +164,7 @@ export default function Navbar() {
   const phoneMenuItems = [
     // { icon: Home, label: "Home", route: "/explore" },
     { icon: User, label: "Profile", route: "/bio" },
+    { icon: Mail, label: "Messages", route: "/chat" },
     { icon: Bell, label: "Notifications", route: "/notifications" },
     { icon: FileText, label: "My Posts", route: "/profile" },
     { icon: Users, label: "Connections", route: "/connections" },
@@ -212,7 +213,7 @@ export default function Navbar() {
                   }}
                 >
                   <img
-                    src={user.profilePicture || "/default-avatar.png"}
+                    src={user.profilePicture || "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"}
                     alt={user.name}
                     className="w-10 h-10 rounded-full mr-3 object-cover transition-transform duration-150 hover:scale-105"
                   />
@@ -421,7 +422,7 @@ export default function Navbar() {
               <SheetContent side="right" className="w-[300px] sm:w-[400px]">
                 <SheetTitle>Menu</SheetTitle>
                 <nav className="flex flex-col justify-between h-full">
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <div className="relative mb-7 mt-4" ref={mobileSearchContainerRef}>
                       {renderInput && (
                         <div className="relative">

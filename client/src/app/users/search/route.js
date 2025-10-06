@@ -1,4 +1,4 @@
-// Helper function to extract token from cookies (server-side)
+// Helper function to extract token from cookies
 function getTokenFromCookies(cookieHeader) {
   if (!cookieHeader) return null;
 
@@ -10,91 +10,109 @@ function getTokenFromCookies(cookieHeader) {
     return acc;
   }, {});
 
-  return (
-    cookies.refreshToken ||
-    cookies.accessToken ||
-    cookies.token ||
-    cookies.authToken ||
-    cookies.jwt ||
-    cookies.auth_token
-  );
+  return {
+    refreshToken: cookies.refreshToken,
+    accessToken:
+      cookies.accessToken || cookies.token || cookies.authToken || cookies.jwt,
+  };
 }
 
 export async function GET(request) {
   try {
-    console.log("��� API: /api/users called");
+    const { searchParams } = new URL(request.url);
+    const query = searchParams.get("q");
+    const cookieHeader = request.headers.get("cookie");
 
-    // Try to get token from Authorization header first
-    const authHeader = request.headers.get("Authorization");
-    let token = null;
-
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      token = authHeader.substring(7);
-      console.log("🔑 Token from Authorization header");
-    } else {
-      // Fallback to cookies
-      const cookieHeader = request.headers.get("cookie");
-      console.log("🍪 Cookie header:", cookieHeader);
-
-      if (cookieHeader) {
-        token = getTokenFromCookies(cookieHeader);
-        console.log("🔑 Token from cookies:", token ? "Found" : "Not found");
-      }
-    }
-
-    if (!token) {
-      console.log("❌ No authentication token found");
+    if (!cookieHeader) {
       return Response.json(
-        { error: "Authorization required" },
+        { error: "No authentication cookies" },
         { status: 401 }
       );
     }
 
-    console.log("✅ Token available, proceeding with mock data");
+    if (!query || query.trim() === "") {
+      return Response.json(
+        { error: "Search query cannot be empty" },
+        { status: 400 }
+      );
+    }
 
-    // Mock users data - replace with your actual API call
-    const mockUsers = [
-      {
-        id: "user_1",
-        name: "Alice Johnson",
-        email: "alice@example.com",
-        avatar: null,
-        isOnline: true,
-      },
-      {
-        id: "user_2",
-        name: "Bob Smith",
-        email: "bob@example.com",
-        avatar: null,
-        isOnline: false,
-      },
-      {
-        id: "user_3",
-        name: "Carol Davis",
-        email: "carol@example.com",
-        avatar: null,
-        isOnline: true,
-      },
-      {
-        id: "user_4",
-        name: "David Wilson",
-        email: "david@example.com",
-        avatar: null,
-        isOnline: false,
-      },
-      {
-        id: "user_5",
-        name: "Emma Brown",
-        email: "emma@example.com",
-        avatar: null,
-        isOnline: true,
-      },
-    ];
+    // Extract tokens from cookies
+    const { refreshToken, accessToken } = getTokenFromCookies(cookieHeader);
 
-    console.log("👥 Returning mock users:", mockUsers.length);
-    return Response.json(mockUsers);
+    // Get access token (refresh if needed)
+    let authToken = accessToken;
+    if (!authToken && refreshToken) {
+      try {
+        const refreshResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/refresh`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Cookie: cookieHeader,
+            },
+          }
+        );
+
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          authToken = refreshData.accessToken || refreshData.token;
+        }
+      } catch (refreshError) {
+        console.error("Error refreshing token:", refreshError);
+      }
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      Cookie: cookieHeader,
+    };
+
+    if (authToken) {
+      headers["Authorization"] = `Bearer ${authToken}`;
+    }
+
+    // Call your backend user search endpoint
+    const response = await fetch(
+      // `http://localhost:8080/api/chat/search?query=${encodeURIComponent(query)}`,
+      `${
+        process.env.NEXT_PUBLIC_BACKEND_URL
+      }/api/chat/search?query=${encodeURIComponent(query)}`,
+      {
+        headers,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Backend error:", errorText);
+      return Response.json(
+        { error: "Failed to search users" },
+        { status: response.status }
+      );
+    }
+
+    const data = await response.json();
+
+    // Transform backend response to frontend format
+    if (data.status === "ok" && data.users) {
+      const transformedUsers = data.users.map((user) => ({
+        id: user._id,
+        name: user.name,
+        email:
+          user.email ||
+          `${user.name.toLowerCase().replace(/\s+/g, "")}@example.com`,
+        avatar: user.avatar,
+        about: user.about || "",
+      }));
+
+      return Response.json(transformedUsers);
+    }
+
+    return Response.json([]);
   } catch (error) {
-    console.error("❌ Error in /api/users:", error);
-    return Response.json({ error: "Failed to fetch users" }, { status: 500 });
+    console.error("❌ Error searching users:", error);
+    return Response.json({ error: "Failed to search users" }, { status: 500 });
   }
 }

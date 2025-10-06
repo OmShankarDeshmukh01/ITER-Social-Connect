@@ -132,19 +132,126 @@ const {
   where,
   doc,
   getDoc,
+  getCountFromServer,
 } = require("firebase/firestore");
 
 const getAllPosts = async (req, res) => {
   try {
-    const { page = 1, limit: limitParam = 10 } = req.query;
+    const { page = 1, limit: limitParam = 10, role } = req.query;
     const limitValue = parseInt(limitParam, 10);
-    const currentUserId = req.user?.userId; // Get current user ID
+    const currentUserId = req.user?.userId; 
 
     if (isNaN(page) || isNaN(limitValue) || page < 1 || limitValue < 1) {
       return res.status(400).json({ error: "Invalid page or limit parameter" });
     }
 
     const postsCollection = collection(db, "posts");
+    
+    // If role filtering is requested, we need a different approach
+    if (role && (role === 'teacher' || role === 'alumni')) {
+      // For role filtering, we need to fetch all posts and filter by user role
+      // This is less efficient but necessary since posts don't contain role info
+      const allPostsSnapshot = await getDocs(
+        query(postsCollection, orderBy("createdAt", "desc"))
+      );
+      
+      let allPosts = allPostsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Fetch user details for all posts to filter by role
+      const postsWithUserData = await Promise.all(
+        allPosts.map(async (post) => {
+          if (!post.userId) return { ...post, role: 'user' };
+
+          const userRef = doc(db, "users", post.userId);
+          const userSnapshot = await getDoc(userRef);
+
+          if (!userSnapshot.exists()) return { ...post, role: 'user' };
+
+          const userData = userSnapshot.data();
+          return {
+            ...post,
+            userName: userData.name || "Unknown",
+            profilePicture: userData.profilePicture || "",
+            role: userData.role || "user",
+          };
+        })
+      );
+
+      // Filter by role
+      const filteredPosts = postsWithUserData.filter(post => post.role === role);
+      
+      // Apply pagination to filtered results
+      const startIndex = (page - 1) * limitValue;
+      const endIndex = startIndex + limitValue;
+      const paginatedPosts = filteredPosts.slice(startIndex, endIndex);
+      
+      // Process the paginated posts
+      let posts = paginatedPosts.map((post) => {
+        const likesArray = Array.isArray(post.likes) ? post.likes : [];
+        const isLiked = currentUserId ? likesArray.includes(currentUserId) : false;
+        
+        return {
+          ...post,
+          isLiked,
+          likeCount: likesArray.length,
+          category: post.category || "Uncategorized",
+        };
+      });
+
+      // Fetch comment counts for filtered posts
+      const postsWithCommentCount = await Promise.all(
+        posts.map(async (post) => {
+          try {
+            const commentsRef = collection(db, "posts", post.id, "comments");
+            const countQuery = query(commentsRef);
+            const countSnapshot = await getCountFromServer(countQuery);
+            const commentCount = countSnapshot.data().count;
+            
+            return {
+              ...post,
+              commentCount,
+            };
+          } catch (error) {
+            console.error(`Error fetching comment count for post ${post.id}:`, error);
+            return {
+              ...post,
+              commentCount: 0,
+            };
+          }
+        })
+      );
+
+      posts = postsWithCommentCount;
+
+      // Fetch bookmarks
+      let bookmarkedPosts = new Set();
+      if (currentUserId) {
+        const bookmarksSnapshot = await getDocs(
+          collection(db, `users/${currentUserId}/bookmarks`)
+        );
+        bookmarksSnapshot.forEach((doc) => {
+          bookmarkedPosts.add(doc.data().postId);
+        });
+      }
+
+      // Add isBookmarked
+      posts = posts.map((post) => ({
+        ...post,
+        isBookmarked: bookmarkedPosts.has(post.id),
+      }));
+
+      const hasMore = endIndex < filteredPosts.length;
+
+      return res.status(200).json({
+        posts,
+        hasMore,
+      });
+    }
+
+    // Original logic for non-role filtering
     let postsQuery = query(
       postsCollection,
       orderBy("createdAt", "desc"),
@@ -178,8 +285,6 @@ const getAllPosts = async (req, res) => {
     let posts = postsSnapshot.docs.map((doc) => {
       const data = doc.data();
       const likesArray = Array.isArray(data.likes) ? data.likes : [];
-      
-      // SIMPLE isLiked calculation
       const isLiked = currentUserId ? likesArray.includes(currentUserId) : false;
       
       return {
@@ -190,6 +295,31 @@ const getAllPosts = async (req, res) => {
         category: data.category || "Uncategorized",
       };
     });
+
+    // Fetch comment count for each post using count aggregation (more efficient)
+    const postsWithCommentCount = await Promise.all(
+      posts.map(async (post) => {
+        try {
+          const commentsRef = collection(db, "posts", post.id, "comments");
+          const countQuery = query(commentsRef);
+          const countSnapshot = await getCountFromServer(countQuery);
+          const commentCount = countSnapshot.data().count;
+          
+          return {
+            ...post,
+            commentCount,
+          };
+        } catch (error) {
+          console.error(`Error fetching comment count for post ${post.id}:`, error);
+          return {
+            ...post,
+            commentCount: 0,
+          };
+        }
+      })
+    );
+
+    posts = postsWithCommentCount;
 
     // Fetch user details
     const userPromises = posts.map(async (post) => {

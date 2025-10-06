@@ -52,6 +52,13 @@ export function SigninForm() {
       const errorMessage =
         err.response?.data?.message ||
         "Failed to sign in. Please check your credentials and try again.";
+
+      if (errorMessage.includes("Please complete your profile")) {
+        sessionStorage.setItem("pendingPassword", password);
+        router.push(`/complete?email=${encodeURIComponent(email)}`);
+        return;
+      }
+
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -104,7 +111,10 @@ export function SigninForm() {
         </div>
 
         <div>
-          <Label htmlFor="password" className="text-gray-700 dark:text-gray-300">
+          <Label
+            htmlFor="password"
+            className="text-gray-700 dark:text-gray-300"
+          >
             Password
           </Label>
           <div className="relative">
@@ -128,6 +138,17 @@ export function SigninForm() {
               )}
             </button>
           </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div></div>
+          <button
+            type="button"
+            onClick={() => router.push("/forget-password")}
+            className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 focus:outline-none"
+          >
+            Forgot password?
+          </button>
         </div>
 
         {error && (
