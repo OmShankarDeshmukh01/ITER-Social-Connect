@@ -132,8 +132,8 @@ export default function RightSidebar() {
                   alt={req.name || "User profile image"}
                   width={40}
                   height={40}
-                  // className="rounded-full flex-shrink-0"
                   className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                  onError={(e) => { e.currentTarget.src = "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"; }}
                 />
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">

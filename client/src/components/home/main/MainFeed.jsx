@@ -787,6 +787,7 @@ export default function MainFeed() {
                 height={40}
                 className="rounded-full"
                 priority
+                onError={(e) => { e.currentTarget.src = "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"; }}
                 style={{
                   objectFit: "cover",
                   objectPosition: "center",
@@ -927,6 +928,7 @@ export default function MainFeed() {
                 className="rounded-full"
                 priority
                 onClick={() => redirectToProfile(post.userId)}
+                onError={(e) => { e.currentTarget.src = "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"; }}
                 style={{
                   objectFit: "cover",
                   objectPosition: "center",

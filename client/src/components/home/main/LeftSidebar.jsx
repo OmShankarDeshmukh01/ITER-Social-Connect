@@ -86,6 +86,7 @@ export default function LeftSidebar() {
                     priority
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 460px"
+                    onError={(e) => { e.currentTarget.src = "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"; }}
                     style={{
                       objectFit: "cover",
                       objectPosition: "center",
