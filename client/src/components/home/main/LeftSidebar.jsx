@@ -1,6 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import NextImage from "next/image";
 import ProfileImage from "@/components/ui/ProfileImage";
 import { useProfile } from "@/contexts/ProfileContext";
 import { BACKEND_URL } from "@/configs/index";
