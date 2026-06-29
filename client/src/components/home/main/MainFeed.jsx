@@ -10,7 +10,6 @@
 
 /** Imports */
 import { useEffect, useState, useRef, useCallback } from "react";
-import NextImage from "next/image";
 import ProfileImage from "@/components/ui/ProfileImage";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthProvider";
