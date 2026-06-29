@@ -11,6 +11,7 @@
 /** Imports */
 import { useEffect, useState, useRef, useCallback } from "react";
 import NextImage from "next/image";
+import ProfileImage from "@/components/ui/ProfileImage";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthProvider";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -777,17 +778,13 @@ export default function MainFeed() {
             {loading ? (
               <div className="bg-gray-300 dark:bg-gray-700 animate-pulse rounded-full transition-all duration-700 w-10 h-10"></div>
             ) : (
-              <NextImage
-                src={
-                  profile?.profilePicture ||
-                  "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"
-                }
+              <ProfileImage
+                src={profile?.profilePicture}
                 alt="Avatar"
                 width={40}
                 height={40}
                 className="rounded-full"
                 priority
-                onError={(e) => { e.currentTarget.src = "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"; }}
                 style={{
                   objectFit: "cover",
                   objectPosition: "center",
@@ -917,18 +914,14 @@ export default function MainFeed() {
               className="flex-row items-center gap-4 p-4 lg:px-5 lg:pt-4"
               onClick={() => router.push(`/post/${post.id}`)}
             >
-              <NextImage
-                src={
-                  post.profilePicture ||
-                  "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"
-                }
+              <ProfileImage
+                src={post.profilePicture}
                 alt="Avatar"
                 width={48}
                 height={48}
                 className="rounded-full"
                 priority
                 onClick={() => redirectToProfile(post.userId)}
-                onError={(e) => { e.currentTarget.src = "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"; }}
                 style={{
                   objectFit: "cover",
                   objectPosition: "center",

@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthProvider";
 import { BACKEND_URL } from "@/configs/index";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Image from "next/image";
+import ProfileImage from "@/components/ui/ProfileImage";
 import { Check, X } from "lucide-react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
@@ -127,13 +127,12 @@ export default function RightSidebar() {
           ) : requests.length > 0 ? (
             requests.slice(0, 2).map((req) => (
               <div key={req.requestId} className="flex items-center gap-3">
-                <Image
-                  src={req.profilePicture || "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"}
+                <ProfileImage
+                  src={req.profilePicture}
                   alt={req.name || "User profile image"}
                   width={40}
                   height={40}
                   className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                  onError={(e) => { e.currentTarget.src = "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"; }}
                 />
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">

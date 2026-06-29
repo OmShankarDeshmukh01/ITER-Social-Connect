@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import NextImage from "next/image";
+import ProfileImage from "@/components/ui/ProfileImage";
 import { useProfile } from "@/contexts/ProfileContext";
 import { BACKEND_URL } from "@/configs/index";
 import { useRouter } from "next/navigation";
@@ -77,16 +77,12 @@ export default function LeftSidebar() {
                 {loading ? (
                   <div className="w-full h-full bg-gray-300 dark:bg-gray-700 animate-pulse rounded-full transition-all duration-700"></div>
                 ) : (
-                  <NextImage
-                    src={
-                      profile?.profilePicture ||
-                      "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"
-                    }
+                  <ProfileImage
+                    src={profile?.profilePicture}
                     alt="Avatar"
                     priority
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 460px"
-                    onError={(e) => { e.currentTarget.src = "https://res.cloudinary.com/dkjsi6iwm/image/upload/v1734123569/profile.jpg"; }}
                     style={{
                       objectFit: "cover",
                       objectPosition: "center",
