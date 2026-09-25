@@ -58,7 +58,7 @@ export default function NotificationComponent() {
   const { accessToken } = useAuth();
   const router = useRouter();
   const observer = useRef();
-  const POST_URL = (process.env.NEXT_PUBLIC_POST_URL || "https://iterconnect.live/").replace(/\/?$/, "/");
+  const POST_URL = (process.env.NEXT_PUBLIC_POST_URL || "https://iterconnect.com/").replace(/\/?$/, "/");
 
   useEffect(() => {
     if (!accessToken) router.push("/signin");
